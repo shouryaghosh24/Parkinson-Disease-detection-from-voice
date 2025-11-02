@@ -10,22 +10,128 @@ import os
 import joblib
 from sklearn.preprocessing import StandardScaler
 
-# ---------------- Config - update TRAIN_DATA_DIR if your training data lives somewhere else ----
-MODEL_PATH = "parkinson_model_87.h5"              # your model file
-SCALER_PATH = "scaler.pkl"                        # saved scaler (if exists/will be created)
-TRAIN_DATA_DIR = r"C:\Users\KIIT\Documents\project_ind4.0\data\kaggle_voice"  # adjust if needed
+# ---------------- Config ----------------
+MODEL_PATH = "parkinson_model_87.h5"
+SCALER_PATH = "scaler.pkl"
+TRAIN_DATA_DIR = r"C:\Users\KIIT\Documents\project_ind4.0\data\kaggle_voice"
 MFCC_N = 40
 
 # ---------------- Streamlit Page Config ----------------
 st.set_page_config(page_title="Parkinson’s Voice Detection", page_icon="🧠", layout="wide")
 
-# ---------------- (UI CSS omitted here - keep your existing CSS) ----------------
-st.markdown("""<style> /* kept minimal for brevity, keep your CSS in real app */ </style>""", unsafe_allow_html=True)
+# ---------------- 🎨 UI & CSS Styling ----------------
+st.markdown("""
+<style>
+/* Background and page container */
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+    color: #F5F5F5;
+    font-family: 'Segoe UI', sans-serif;
+    padding-top: 1rem;
+}
 
-# ---------------- Header & instructions (kept same) ----------------
+/* Header */
+h1 {
+    color: #FFD700 !important;
+    text-align: center;
+    font-size: 2.7em !important;
+    margin-bottom: 0.4em;
+    text-shadow: 2px 2px 8px rgba(255, 215, 0, 0.4);
+}
+
+/* General paragraph style */
+p {
+    font-size: 1.07em !important;
+    color: #EAEAEA !important;
+    line-height: 1.75em !important;
+    text-align: justify !important;
+}
+
+/* Section headers */
+.section-header {
+    font-size: 1.6em !important;
+    color: #FFD700;
+    text-align: center;
+    margin-top: 1.7em;
+    font-weight: 700;
+    text-shadow: 1px 1px 6px rgba(255, 255, 0, 0.4);
+}
+
+/* File uploader box */
+[data-testid="stFileUploader"] {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 15px;
+    padding: 25px;
+    border: 2px dashed #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.15);
+}
+
+/* Alerts (success/info/error) */
+.stAlert {
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    font-weight: 600;
+    font-size: 1.05em;
+}
+.stAlert[data-baseweb="alert-success"] {
+    background-color: rgba(0, 128, 0, 0.15);
+    border-left: 6px solid #00FF7F;
+}
+.stAlert[data-baseweb="alert-error"] {
+    background-color: rgba(255, 0, 0, 0.15);
+    border-left: 6px solid #FF4C4C;
+}
+.stAlert[data-baseweb="alert-info"] {
+    background-color: rgba(30, 144, 255, 0.15);
+    border-left: 6px solid #1E90FF;
+}
+.stAlert[data-baseweb="alert-warning"] {
+    background-color: rgba(255, 165, 0, 0.15);
+    border-left: 6px solid #FFD700;
+}
+
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(90deg, #FFD700, #FF8C00);
+    color: #000;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 12px 24px;
+    transition: 0.3s;
+    border: none;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+.stButton>button:hover {
+    background: linear-gradient(90deg, #FFB400, #FF6F00);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+/* Dataframe table */
+[data-testid="stDataFrame"] {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0px 0px 12px rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
+}
+
+/* Footer */
+.footer {
+    color: #FFD700;
+    text-align: center;
+    font-size: 1.08em;
+    margin-top: 50px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    text-shadow: 1px 1px 5px rgba(255, 215, 0, 0.3);
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- Header & Instructions ----------------
 st.markdown("<h1>🧠 Parkinson’s Disease Detection from Voice</h1>", unsafe_allow_html=True)
 st.markdown("""
-<p style='font-size:1.05em; text-align:center; color:#E6E6E6; line-height:1.6em;'>
+<p style='text-align:center; color:#E6E6E6;'>
 Parkinson’s Disease is a progressive disorder that affects movement, causing tremors, stiffness, and slowness.<br>
 Early detection helps in better management and improved quality of life.
 </p>
@@ -33,22 +139,23 @@ Early detection helps in better management and improved quality of life.
 
 st.markdown("<div class='section-header'>🎙️ Upload a voice recording (.wav) to check your Parkinson’s result</div>", unsafe_allow_html=True)
 st.markdown("""
-<p style='color:#FFD700; font-size:1.02em; font-weight:600;'>
+<p style='color:#FFD700; font-weight:600;'>
 🎧 If you have a file in <b>.mp3</b> format or any other format, please convert it to <b>.wav</b>.
 </p>
-<p style='color:#FFD700; font-size:1.02em; font-weight:600;'>
+<p style='color:#FFD700; font-weight:600;'>
 🗣️ Please upload a voice like “aaa” for better results.<br>
 ⚠️ Even small disturbances in the voice can change the result. Upload the clearest voice sample possible.<br>
 🎙️ It is advisable to use a microphone for best accuracy.
 </p>
-<p style='color:#FF4C4C; font-size:1.02em; font-weight:700;'>
+<p style='color:#FF4C4C; font-weight:700;'>
 🚨 WARNING: This is an AI model trained on open-source data and may make mistakes. Always consult a medical professional for confirmation.
 </p>
 """, unsafe_allow_html=True)
 
+# ---------------- File Upload ----------------
 uploaded_file = st.file_uploader("", type=["wav"])
 
-# ---------------- Load model ----------------
+# ---------------- Load Model ----------------
 if not os.path.exists(MODEL_PATH):
     st.error(f"Model file not found at {MODEL_PATH}. Please place your .h5 model there.")
     st.stop()
@@ -56,7 +163,7 @@ if not os.path.exists(MODEL_PATH):
 model = load_model(MODEL_PATH)
 st.info(f"Model loaded from {MODEL_PATH}")
 
-# ---------------- ✅ Load scaler here ----------------
+# ---------------- Load Scaler ----------------
 try:
     scaler = joblib.load(SCALER_PATH)
     st.success("Scaler loaded successfully ✅")
@@ -64,11 +171,11 @@ except Exception as e:
     st.warning(f"Scaler not available: {e}. Using fallback normalization.")
     scaler = None
 
-# ---------------- Feature extraction helpers ----------------
+# ---------------- Feature Extraction ----------------
 def extract_mfcc_mean_from_path(path, n_mfcc=MFCC_N):
     y, sr = librosa.load(path, sr=None)
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
-    return np.mean(mfccs, axis=1)  # shape (n_mfcc,)
+    return np.mean(mfccs, axis=1)
 
 def extract_features_from_filelike(filelike, n_mfcc=MFCC_N):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -97,7 +204,7 @@ def extract_features_from_filelike(filelike, n_mfcc=MFCC_N):
         except Exception:
             pass
 
-# ---------------- PDF report (same as before) ----------------
+# ---------------- PDF Report ----------------
 def create_pdf_report(params, diagnosis, prob_healthy=None, prob_parkinson=None):
     pdf = FPDF()
     pdf.add_page()
@@ -140,7 +247,6 @@ if uploaded_file is not None:
     try:
         features, y, sr, mfccs, display_params = extract_features_from_filelike(uploaded_file)
 
-        # Apply scaler if available, otherwise fallback to sample z-score
         if scaler is not None:
             try:
                 features_scaled = scaler.transform(features)
@@ -150,7 +256,6 @@ if uploaded_file is not None:
         else:
             features_scaled = (features - np.mean(features)) / (np.std(features) + 1e-9)
 
-        # Predict
         pred = model.predict(features_scaled)
         prob_parkinson = None
         prob_healthy = None
@@ -164,7 +269,6 @@ if uploaded_file is not None:
             prob_parkinson = float(pred[0][0])
             prob_healthy = 1.0 - prob_parkinson
 
-        # Decision display
         if prob_parkinson > prob_healthy:
             diagnosis = "🩺 Parkinson’s Detected"
             st.error(f"{diagnosis} — please consult a neurologist.")
@@ -196,3 +300,6 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.warning(f"⚠️ Error processing audio: {e}")
+
+# ---------------- Footer ----------------
+st.markdown("<div class='footer'>💻 Developed by <b>Shourya Ghosh</b></div>", unsafe_allow_html=True)
